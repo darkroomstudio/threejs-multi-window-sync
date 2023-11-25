@@ -1,7 +1,15 @@
-import * as THREE from 'three'
+import {
+  OrthographicCamera,
+  Scene,
+  Color,
+  WebGLRenderer,
+  Object3D,
+  Mesh,
+  BoxGeometry,
+  MeshBasicMaterial,
+} from 'three'
 import WindowManager from './WindowManager.js'
 
-const t = THREE
 let camera: any, scene: any, renderer: any, world: any
 // let near: any, far: any
 const pixR = window.devicePixelRatio ? window.devicePixelRatio : 1
@@ -55,7 +63,7 @@ function init() {
 }
 
 function setupScene() {
-  camera = new t.OrthographicCamera(
+  camera = new OrthographicCamera(
     0,
     0,
     window.innerWidth,
@@ -68,17 +76,17 @@ function setupScene() {
   // near = camera.position.z - 0.5
   // far = camera.position.z + 0.5
 
-  scene = new t.Scene()
-  scene.background = new t.Color(0.0)
+  scene = new Scene()
+  scene.background = new Color(0.0)
   scene.add(camera)
 
-  renderer = new t.WebGLRenderer({
+  renderer = new WebGLRenderer({
     antialias: true,
     logarithmicDepthBuffer: true,
   })
   renderer.setPixelRatio(pixR)
 
-  world = new t.Object3D()
+  world = new Object3D()
   scene.add(world)
 
   renderer.domElement.setAttribute('id', 'scene')
@@ -118,13 +126,13 @@ function updateNumberOfCubes() {
   for (let i = 0; i < wins.length; i++) {
     const win = wins[i]
 
-    const c = new t.Color()
+    const c = new Color()
     c.setHSL(i * 0.1, 1.0, 0.5)
 
     const s = 100 + i * 50
-    const cube = new t.Mesh(
-      new t.BoxGeometry(s, s, s),
-      new t.MeshBasicMaterial({ color: c, wireframe: true })
+    const cube = new Mesh(
+      new BoxGeometry(s, s, s),
+      new MeshBasicMaterial({ color: c, wireframe: true })
     )
     cube.position.x = win.shape.x + win.shape.w * 0.5
     cube.position.y = win.shape.y + win.shape.h * 0.5
@@ -186,7 +194,7 @@ function resize() {
   const width = window.innerWidth
   const height = window.innerHeight
 
-  camera = new t.OrthographicCamera(0, width, 0, height, -10000, 10000)
+  camera = new OrthographicCamera(0, width, 0, height, -10000, 10000)
   camera.updateProjectionMatrix()
   renderer.setSize(width, height)
 }
