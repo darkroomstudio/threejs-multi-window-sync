@@ -50,7 +50,7 @@ class WindowManager {
 
   // initiate current window (add metadata for custom data to store with each window instance)
   init(metaData: any) {
-    this.#windows = JSON.parse(localStorage.getItem('windows') ?? '') || []
+    this.#windows = JSON.parse(localStorage.getItem('windows')!) || []
     this.#count = localStorage.getItem('count') || 0
     this.#count++
 
