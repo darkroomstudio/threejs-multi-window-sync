@@ -8,7 +8,7 @@ import {
   BoxGeometry,
   MeshBasicMaterial,
 } from 'three'
-import WindowManager from './WindowManager.js'
+import { WindowManager } from './WindowManager'
 
 let camera: any, scene: any, renderer: any, world: any
 // let near: any, far: any
