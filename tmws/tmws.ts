@@ -10,93 +10,38 @@ import {
 } from 'three'
 import { WindowManager } from './WindowManager'
 
-let camera: any, scene: any, renderer: any, world: any
-// let near: any, far: any
 const pixR = window.devicePixelRatio ? window.devicePixelRatio : 1
-let cubes: any = []
-let sceneOffsetTarget = { x: 0, y: 0 }
-let sceneOffset = { x: 0, y: 0 }
-
-let today: any = new Date()
-today.setHours(0)
-today.setMinutes(0)
-today.setSeconds(0)
-today.setMilliseconds(0)
-today = today.getTime()
-
-let windowManager: any
-let initialized = false
 
 // get time in seconds since beginning of the day (so that all windows use the same time)
-function getTime() {
-  return (new Date().getTime() - today) / 1000.0
+function getTimeSinceMidnight() {
+  const midnight = new Date().setHours(0, 0, 0, 0)
+  const currentTime = new Date().getTime()
+  const timeDiff = (currentTime - midnight) / 1000
+
+  return timeDiff
 }
 
-if (new URLSearchParams(window.location.search).get('clear')) {
-  localStorage.clear()
-} else {
-  // this code is essential to circumvent that some browsers preload the content of some pages before you actually hit the url
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState != 'hidden' && !initialized) {
-      init()
-    }
-  })
-
-  window.onload = () => {
-    if (document.visibilityState != 'hidden') {
-      init()
-    }
-  }
-}
-function init() {
-  initialized = true
-
-  // add a short timeout because window.offsetX reports wrong values before a short period
-  setTimeout(() => {
-    setupScene()
-    setupWindowManager()
-    resize()
-    updateWindowShape(false)
-    render()
-    window.addEventListener('resize', resize)
-  }, 500)
-}
-
-function setupScene() {
-  camera = new OrthographicCamera(
-    0,
-    0,
-    window.innerWidth,
-    window.innerHeight,
-    -10000,
-    10000
-  )
-
+function setupScene(
+  camera: OrthographicCamera,
+  scene: Scene,
+  world: Object3D,
+  renderer: WebGLRenderer
+) {
   camera.position.z = 2.5
-  // near = camera.position.z - 0.5
-  // far = camera.position.z + 0.5
 
-  scene = new Scene()
   scene.background = new Color(0.0)
   scene.add(camera)
-
-  renderer = new WebGLRenderer({
-    antialias: true,
-    logarithmicDepthBuffer: true,
-  })
-  renderer.setPixelRatio(pixR)
-
-  world = new Object3D()
   scene.add(world)
 
+  renderer.setPixelRatio(pixR)
   renderer.domElement.setAttribute('id', 'scene')
+
   document.body.appendChild(renderer.domElement)
 }
 
-function setupWindowManager() {
-  windowManager = new WindowManager()
+function setupWindowManager(windowManager: WindowManager, world: Object3D) {
   windowManager.setWinShapeChangeCallback(updateWindowShape)
-  windowManager.setWinChangeCallback(windowsUpdated)
+  windowManager.setWinChangeCallback(updateNumberOfCubes)
 
   // here you can add your custom metadata to each windows instance
   const metaData = { foo: 'bar' }
@@ -105,18 +50,14 @@ function setupWindowManager() {
   windowManager.init(metaData)
 
   // call update windows initially (it will later be called by the win change callback)
-  windowsUpdated()
+  updateNumberOfCubes(windowManager, world)
 }
 
-function windowsUpdated() {
-  updateNumberOfCubes()
-}
-
-function updateNumberOfCubes() {
+function updateNumberOfCubes(windowManager: WindowManager, world: Object3D) {
   const wins = windowManager.getWindows()
-
+  let cubes: Mesh[] = []
   // remove all cubes
-  cubes.forEach((c: any) => {
+  cubes.forEach((c) => {
     world.remove(c)
   })
 
@@ -142,14 +83,28 @@ function updateNumberOfCubes() {
   }
 }
 
-function updateWindowShape(easing = true) {
+function updateWindowShape(
+  easing = true,
+  sceneOffsetTarget: { x: number; y: number },
+  sceneOffset: { x: number; y: number }
+) {
   // storing the actual offset in a proxy that we update against in the render function
   sceneOffsetTarget = { x: -window.screenX, y: -window.screenY }
   if (!easing) sceneOffset = sceneOffsetTarget
+  return sceneOffset
 }
 
-function render() {
-  const t = getTime()
+function render(
+  camera: OrthographicCamera,
+  windowManager: WindowManager,
+  sceneOffsetTarget: { x: number; y: number },
+  sceneOffset: { x: number; y: number },
+  world: Object3D,
+  cubes: Mesh[],
+  renderer: WebGLRenderer,
+  scene: Scene
+) {
+  const t = getTimeSinceMidnight()
 
   windowManager.update()
 
@@ -186,15 +141,116 @@ function render() {
   }
 
   renderer.render(scene, camera)
-  requestAnimationFrame(render)
+  requestAnimationFrame(() => {
+    render(
+      camera,
+      windowManager,
+      sceneOffsetTarget,
+      sceneOffset,
+      world,
+      cubes,
+      renderer,
+      scene
+    )
+  })
 }
 
 // resize the renderer to fit the window size
-function resize() {
+function resize(camera: OrthographicCamera, renderer: WebGLRenderer) {
   const width = window.innerWidth
   const height = window.innerHeight
 
   camera = new OrthographicCamera(0, width, 0, height, -10000, 10000)
   camera.updateProjectionMatrix()
   renderer.setSize(width, height)
+}
+
+export default function main() {
+  const clear = new URLSearchParams(window.location.search).has('clear')
+  if (clear) localStorage.clear()
+
+  const camera = new OrthographicCamera(
+    0,
+    0,
+    window.innerWidth,
+    window.innerHeight,
+    -10000,
+    10000
+  )
+  const scene = new Scene()
+  const world = new Object3D()
+  const windowManager = new WindowManager()
+  const renderer = new WebGLRenderer({
+    antialias: true,
+    logarithmicDepthBuffer: true,
+  })
+  const sceneOffset = { x: 0, y: 0 }
+  const sceneOffsetTarget = { x: 0, y: 0 }
+  const cubes: Mesh[] = []
+  const initProps = {
+    camera,
+    scene,
+    world,
+    renderer,
+    windowManager,
+    sceneOffset,
+    sceneOffsetTarget,
+    cubes,
+  }
+  let initialized = false
+  // this code is essential to circumvent that some browsers preload the content of some pages before you actually hit the url
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'hidden' && !initialized) {
+      initialized = true
+      init(initProps)
+    }
+  })
+
+  window.onload = () => {
+    if (document.visibilityState != 'hidden') {
+      initialized = true
+      init(initProps)
+    }
+  }
+}
+
+function init({
+  camera,
+  scene,
+  world,
+  renderer,
+  windowManager,
+  sceneOffset,
+  sceneOffsetTarget,
+  cubes,
+}: {
+  camera: OrthographicCamera
+  scene: Scene
+  world: Object3D
+  renderer: WebGLRenderer
+  windowManager: WindowManager
+  sceneOffset: { x: number; y: number }
+  sceneOffsetTarget: { x: number; y: number }
+  cubes: Mesh[]
+}) {
+  // add a short timeout because window.offsetX reports wrong values before a short period
+  setTimeout(() => {
+    setupScene(camera, scene, world, renderer)
+    setupWindowManager(windowManager, world)
+    resize(camera, renderer)
+    updateWindowShape(false, sceneOffsetTarget, sceneOffset)
+    render(
+      camera,
+      windowManager,
+      sceneOffsetTarget,
+      sceneOffset,
+      world,
+      cubes,
+      renderer,
+      scene
+    )
+    window.addEventListener('resize', () => {
+      resize(camera, renderer)
+    })
+  })
 }
